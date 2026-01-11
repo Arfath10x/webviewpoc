@@ -1,129 +1,233 @@
 package com.example.webviewpoc
 
-import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.cardview.widget.CardView
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.webviewpoc.ui.theme.WebViewPOCTheme
 
-data class POCItem(
-    val title: String,
-    val description: String,
-    val activity: Class<*>,
-    val badge: String,
-    val badgeColor: Int
-)
-
-class MainActivity : AppCompatActivity() {
-
-    private lateinit var recyclerView: RecyclerView
-
-    private val pocItems = listOf(
-        POCItem(
-            "Unoptimized WebView",
-            "WebView with poor settings and no optimizations. Demonstrates common mistakes and performance issues.",
-            UnoptimizedWebViewActivity::class.java,
-            "❌ SLOW",
-            android.R.color.holo_red_dark
-        ),
-        POCItem(
-            "Optimized WebView",
-            "WebView with best practices and all optimizations enabled. Maximum performance configuration.",
-            OptimizedWebViewActivity::class.java,
-            "✓ FAST",
-            android.R.color.holo_green_dark
-        ),
-        POCItem(
-            "Side-by-Side Comparison",
-            "Compare unoptimized vs optimized WebView performance in real-time with metrics.",
-            ComparisonActivity::class.java,
-            "⚖️ COMPARE",
-            android.R.color.holo_orange_dark
-        ),
-        POCItem(
-            "WebViewClient Optimizations",
-            "Demonstrates WebViewClient and ChromeClient optimizations for resource loading and rendering.",
-            WebViewClientOptimizationsActivity::class.java,
-            "🔧 CLIENT",
-            android.R.color.holo_blue_dark
-        ),
-        POCItem(
-            "Caching Strategies",
-            "Different caching modes and their impact on load times and data usage.",
-            CachingStrategiesActivity::class.java,
-            "💾 CACHE",
-            android.R.color.holo_purple
-        ),
-        POCItem(
-            "Rendering Performance",
-            "Hardware acceleration, layer types, and rendering optimizations.",
-            RenderingPerformanceActivity::class.java,
-            "🎨 RENDER",
-            android.R.color.holo_blue_light
-        ),
-        POCItem(
-            "JavaScript Bridge",
-            "Optimized JavaScript-to-Native communication patterns and performance.",
-            JavaScriptBridgeActivity::class.java,
-            "🌉 BRIDGE",
-            android.R.color.holo_orange_light
-        ),
-        POCItem(
-            "Settings Explorer",
-            "Interactive explorer for all WebView settings with real-time preview.",
-            SettingsActivity::class.java,
-            "⚙️ SETTINGS",
-            android.R.color.darker_gray
-        )
-    )
-
+/**
+ * Main Activity with Jetpack Compose
+ */
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        supportActionBar?.title = "WebView Performance POCs"
-
-        recyclerView = findViewById(R.id.recyclerView)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = POCAdapter(pocItems) { pocItem ->
-            startActivity(Intent(this, pocItem.activity))
+        setContent {
+            WebViewPOCTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    WebViewPOCApp()
+                }
+            }
         }
     }
 }
 
-class POCAdapter(
-    private val items: List<POCItem>,
-    private val onItemClick: (POCItem) -> Unit
-) : RecyclerView.Adapter<POCAdapter.POCViewHolder>() {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WebViewPOCApp() {
+    val navController = rememberNavController()
 
-    class POCViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val cardView: CardView = view.findViewById(R.id.cardView)
-        val titleText: TextView = view.findViewById(R.id.titleText)
-        val descriptionText: TextView = view.findViewById(R.id.descriptionText)
-        val badgeText: TextView = view.findViewById(R.id.badgeText)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("WebView Performance POCs") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            )
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            composable("home") { HomeScreen(navController) }
+            composable("unoptimized") { UnoptimizedWebViewScreen(navController) }
+            composable("optimized") { OptimizedWebViewScreen(navController) }
+            composable("comparison") { ComparisonScreen(navController) }
+            composable("webviewclient") { WebViewClientOptimizationsScreen(navController) }
+            composable("caching") { CachingStrategiesScreen(navController) }
+            composable("rendering") { RenderingPerformanceScreen(navController) }
+            composable("jsbridge") { JavaScriptBridgeScreen(navController) }
+            composable("settings") { SettingsExplorerScreen(navController) }
+        }
     }
+}
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): POCViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_poc, parent, false)
-        return POCViewHolder(view)
-    }
+data class POCItem(
+    val route: String,
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val badgeText: String,
+    val badgeColor: Color
+)
 
-    override fun onBindViewHolder(holder: POCViewHolder, position: Int) {
-        val item = items[position]
-        holder.titleText.text = item.title
-        holder.descriptionText.text = item.description
-        holder.badgeText.text = item.badge
-        holder.badgeText.setBackgroundColor(
-            holder.itemView.context.getColor(item.badgeColor)
+@Composable
+fun HomeScreen(navController: NavHostController) {
+    val pocItems = listOf(
+        POCItem(
+            route = "unoptimized",
+            title = "Unoptimized WebView",
+            description = "WebView with poor settings and no optimizations. Demonstrates common mistakes and performance issues.",
+            icon = Icons.Default.Warning,
+            badgeText = "❌ SLOW",
+            badgeColor = Color(0xFFD32F2F)
+        ),
+        POCItem(
+            route = "optimized",
+            title = "Optimized WebView",
+            description = "WebView with best practices and all optimizations enabled. Maximum performance configuration.",
+            icon = Icons.Default.Done,
+            badgeText = "✓ FAST",
+            badgeColor = Color(0xFF388E3C)
+        ),
+        POCItem(
+            route = "comparison",
+            title = "Side-by-Side Comparison",
+            description = "Compare unoptimized vs optimized WebView performance in real-time with metrics.",
+            icon = Icons.Default.CompareArrows,
+            badgeText = "⚖️ COMPARE",
+            badgeColor = Color(0xFFF57C00)
+        ),
+        POCItem(
+            route = "webviewclient",
+            title = "WebViewClient Optimizations",
+            description = "Demonstrates WebViewClient and ChromeClient optimizations for resource loading and rendering.",
+            icon = Icons.Default.Settings,
+            badgeText = "🔧 CLIENT",
+            badgeColor = Color(0xFF1976D2)
+        ),
+        POCItem(
+            route = "caching",
+            title = "Caching Strategies",
+            description = "Different caching modes and their impact on load times and data usage.",
+            icon = Icons.Default.Storage,
+            badgeText = "💾 CACHE",
+            badgeColor = Color(0xFF7B1FA2)
+        ),
+        POCItem(
+            route = "rendering",
+            title = "Rendering Performance",
+            description = "Hardware acceleration, layer types, and rendering optimizations.",
+            icon = Icons.Default.Palette,
+            badgeText = "🎨 RENDER",
+            badgeColor = Color(0xFF0288D1)
+        ),
+        POCItem(
+            route = "jsbridge",
+            title = "JavaScript Bridge",
+            description = "Optimized JavaScript-to-Native communication patterns and performance.",
+            icon = Icons.Default.Code,
+            badgeText = "🌉 BRIDGE",
+            badgeColor = Color(0xFFFFA726)
+        ),
+        POCItem(
+            route = "settings",
+            title = "Settings Explorer",
+            description = "Interactive explorer for all WebView settings with real-time preview.",
+            icon = Icons.Default.Tune,
+            badgeText = "⚙️ SETTINGS",
+            badgeColor = Color(0xFF616161)
         )
-        holder.cardView.setOnClickListener { onItemClick(item) }
-    }
+    )
 
-    override fun getItemCount() = items.size
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(pocItems) { item ->
+            POCCard(
+                item = item,
+                onClick = { navController.navigate(item.route) }
+            )
+        }
+    }
+}
+
+@Composable
+fun POCCard(
+    item: POCItem,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = item.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = item.badgeColor,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(
+                        text = item.badgeText,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = item.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
