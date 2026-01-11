@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             WebViewPOCTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    WebViewTouchPOC(
+                    WebGLOptimizationPOC(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
