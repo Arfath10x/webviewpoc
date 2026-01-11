@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.webviewpoc">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.WebViewPOC"
+        android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true">
+
+        <!-- Main Dashboard -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.WebViewPOC">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- POC 1: Unoptimized WebView -->
+        <activity
+            android:name=".UnoptimizedWebViewActivity"
+            android:label="POC 1: Unoptimized WebView"
+            android:hardwareAccelerated="false" />
+
+        <!-- POC 2: Optimized WebView -->
+        <activity
+            android:name=".OptimizedWebViewActivity"
+            android:label="POC 2: Optimized WebView"
+            android:hardwareAccelerated="true" />
+
+        <!-- POC 3: Side-by-Side Comparison -->
+        <activity
+            android:name=".ComparisonActivity"
+            android:label="POC 3: WebView Comparison"
+            android:hardwareAccelerated="true" />
+
+        <!-- POC 4: WebView Client Optimizations -->
+        <activity
+            android:name=".WebViewClientOptimizationsActivity"
+            android:label="POC 4: WebViewClient Optimizations"
+            android:hardwareAccelerated="true" />
+
+        <!-- POC 5: Caching Strategies -->
+        <activity
+            android:name=".CachingStrategiesActivity"
+            android:label="POC 5: Caching Strategies"
+            android:hardwareAccelerated="true" />
+
+        <!-- POC 6: Rendering Performance -->
+        <activity
+            android:name=".RenderingPerformanceActivity"
+            android:label="POC 6: Rendering Performance"
+            android:hardwareAccelerated="true" />
+
+        <!-- POC 7: JavaScript Bridge Performance -->
+        <activity
+            android:name=".JavaScriptBridgeActivity"
+            android:label="POC 7: JavaScript Bridge"
+            android:hardwareAccelerated="true" />
+
+        <!-- Settings Activity -->
+        <activity
+            android:name=".SettingsActivity"
+            android:label="WebView Settings Explorer"
+            android:hardwareAccelerated="true" />
+
+    </application>
+
+</manifest>
