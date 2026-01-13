@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POC 2: WebGL 2 Unoptimized Rendering</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            overflow-x: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            padding: 20px;
+            text-align: center;
+        }
+        .warning {
+            background: #f39c12;
+            color: #000;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .container {
+            display: flex;
+            height: calc(100vh - 140px);
+        }
+        .canvas-container {
+            flex: 1;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .metrics-panel {
+            width: 300px;
+            background: #2c3e50;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .metric {
+            background: #34495e;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #95a5a6;
+            margin-bottom: 5px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .issues-list {
+            background: #c0392b;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        .issues-list h3 {
+            margin-top: 0;
+            font-size: 14px;
+        }
+        .issues-list ul {
+            font-size: 12px;
+            line-height: 1.6;
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+        .controls {
+            background: #34495e;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .controls label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .controls input {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>UNOPTIMIZED WebGL 2 Rendering</h1>
+        <p>This version demonstrates common performance mistakes</p>
+    </div>
+
+    <div class="warning">
+        ⚠ WARNING: This version intentionally uses bad practices for comparison
+    </div>
+
+    <div class="container">
+        <div class="canvas-container">
+            <canvas id="glCanvas"></canvas>
+        </div>
+        <div class="metrics-panel">
+            <div class="controls">
+                <label>Object Count: <span id="objectCountLabel">1000</span></label>
+                <input type="range" id="objectCount" min="100" max="5000" value="1000" step="100">
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">FPS</div>
+                <div class="metric-value" id="fps">60</div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">Frame Time</div>
+                <div class="metric-value" id="frameTime">16.67ms</div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">Draw Calls</div>
+                <div class="metric-value" id="drawCalls">0</div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">State Changes</div>
+                <div class="metric-value" id="stateChanges">0</div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">Vertices Drawn</div>
+                <div class="metric-value" id="vertices">0</div>
+            </div>
+
+            <div class="issues-list">
+                <h3>Performance Issues in This Version:</h3>
+                <ul>
+                    <li>Individual draw call per object (no batching)</li>
+                    <li>No instanced rendering</li>
+                    <li>Redundant state changes (binding buffers every frame)</li>
+                    <li>No frustum culling (drawing off-screen objects)</li>
+                    <li>Inefficient shader with unnecessary calculations</li>
+                    <li>Creating new matrices every frame</li>
+                    <li>No texture atlasing (individual textures)</li>
+                    <li>High precision floats everywhere</li>
+                    <li>Synchronous uniform updates</li>
+                    <li>No VAO (Vertex Array Object) usage</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl2');
+
+        if (!gl) {
+            alert('WebGL 2 not supported!');
+        }
+
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Unoptimized vertex shader with unnecessary calculations
+        const vertexShaderSource = `#version 300 es
+        precision highp float;  // Unnecessarily high precision
+
+        in vec3 aPosition;
+        in vec3 aColor;
+
+        uniform mat4 uModel;
+        uniform mat4 uView;
+        uniform mat4 uProjection;
+        uniform float uTime;
+
+        out vec3 vColor;
+
+        void main() {
+            // Unnecessary calculations in vertex shader
+            float wave = sin(uTime + aPosition.x) * 0.1;
+            vec3 pos = aPosition + vec3(0.0, wave, 0.0);
+
+            // Doing matrix multiplication in inefficient order
+            gl_Position = uProjection * uView * uModel * vec4(pos, 1.0);
+            vColor = aColor;
+        }
+        `;
+
+        // Unoptimized fragment shader
+        const fragmentShaderSource = `#version 300 es
+        precision highp float;  // Unnecessarily high precision
+
+        in vec3 vColor;
+        out vec4 fragColor;
+
+        uniform float uTime;
+
+        void main() {
+            // Unnecessary calculations in fragment shader
+            float brightness = sin(uTime * 2.0) * 0.2 + 0.8;
+            vec3 color = vColor * brightness;
+
+            // Unnecessary conditional in fragment shader
+            if (color.r > 0.5) {
+                color.r = color.r * 1.1;
+            }
+
+            fragColor = vec4(color, 1.0);
+        }
+        `;
+
+        // Compile shader
+        function compileShader(source, type) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        // Create program
+        const vertexShader = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
+        const fragmentShader = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
+
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            console.error('Program linking error:', gl.getProgramInfoLog(program));
+        }
+
+        // Get attribute and uniform locations
+        const aPosition = gl.getAttribLocation(program, 'aPosition');
+        const aColor = gl.getAttribLocation(program, 'aColor');
+        const uModel = gl.getUniformLocation(program, 'uModel');
+        const uView = gl.getUniformLocation(program, 'uView');
+        const uProjection = gl.getUniformLocation(program, 'uProjection');
+        const uTime = gl.getUniformLocation(program, 'uTime');
+
+        // Create cube geometry (NOT using indices - wasteful)
+        const cubeVertices = new Float32Array([
+            // Front face
+            -0.5, -0.5,  0.5,
+             0.5, -0.5,  0.5,
+             0.5,  0.5,  0.5,
+            -0.5, -0.5,  0.5,
+             0.5,  0.5,  0.5,
+            -0.5,  0.5,  0.5,
+            // Back face
+            -0.5, -0.5, -0.5,
+            -0.5,  0.5, -0.5,
+             0.5,  0.5, -0.5,
+            -0.5, -0.5, -0.5,
+             0.5,  0.5, -0.5,
+             0.5, -0.5, -0.5,
+            // Top face
+            -0.5,  0.5, -0.5,
+            -0.5,  0.5,  0.5,
+             0.5,  0.5,  0.5,
+            -0.5,  0.5, -0.5,
+             0.5,  0.5,  0.5,
+             0.5,  0.5, -0.5,
+            // Bottom face
+            -0.5, -0.5, -0.5,
+             0.5, -0.5, -0.5,
+             0.5, -0.5,  0.5,
+            -0.5, -0.5, -0.5,
+             0.5, -0.5,  0.5,
+            -0.5, -0.5,  0.5,
+            // Right face
+             0.5, -0.5, -0.5,
+             0.5,  0.5, -0.5,
+             0.5,  0.5,  0.5,
+             0.5, -0.5, -0.5,
+             0.5,  0.5,  0.5,
+             0.5, -0.5,  0.5,
+            // Left face
+            -0.5, -0.5, -0.5,
+            -0.5, -0.5,  0.5,
+            -0.5,  0.5,  0.5,
+            -0.5, -0.5, -0.5,
+            -0.5,  0.5,  0.5,
+            -0.5,  0.5, -0.5
+        ]);
+
+        // Create individual buffers for each object (VERY INEFFICIENT!)
+        let objectCount = 1000;
+        let objects = [];
+
+        function createObjects() {
+            objects = [];
+            for (let i = 0; i < objectCount; i++) {
+                // Create separate buffer for each object (BAD!)
+                const positionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, cubeVertices, gl.STATIC_DRAW);
+
+                // Generate random colors for each vertex (wasteful)
+                const colors = new Float32Array(36 * 3);
+                const r = Math.random();
+                const g = Math.random();
+                const b = Math.random();
+                for (let j = 0; j < 36; j++) {
+                    colors[j * 3] = r;
+                    colors[j * 3 + 1] = g;
+                    colors[j * 3 + 2] = b;
+                }
+
+                const colorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+                objects.push({
+                    positionBuffer,
+                    colorBuffer,
+                    x: (Math.random() - 0.5) * 50,
+                    y: (Math.random() - 0.5) * 50,
+                    z: (Math.random() - 0.5) * 50,
+                    rotationX: Math.random() * Math.PI * 2,
+                    rotationY: Math.random() * Math.PI * 2,
+                    rotationZ: Math.random() * Math.PI * 2,
+                    rotationSpeedX: (Math.random() - 0.5) * 0.02,
+                    rotationSpeedY: (Math.random() - 0.5) * 0.02,
+                    rotationSpeedZ: (Math.random() - 0.5) * 0.02
+                });
+            }
+        }
+
+        createObjects();
+
+        // Object count control
+        document.getElementById('objectCount').addEventListener('input', (e) => {
+            objectCount = parseInt(e.target.value);
+            document.getElementById('objectCountLabel').textContent = objectCount;
+            createObjects();
+        });
+
+        // Matrix helper functions (creating new arrays every time - INEFFICIENT!)
+        function createIdentityMatrix() {
+            return new Float32Array([
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1
+            ]);
+        }
+
+        function createTranslationMatrix(x, y, z) {
+            const mat = createIdentityMatrix();
+            mat[12] = x;
+            mat[13] = y;
+            mat[14] = z;
+            return mat;
+        }
+
+        function createRotationXMatrix(angle) {
+            const mat = createIdentityMatrix();
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            mat[5] = c;
+            mat[6] = s;
+            mat[9] = -s;
+            mat[10] = c;
+            return mat;
+        }
+
+        function createRotationYMatrix(angle) {
+            const mat = createIdentityMatrix();
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            mat[0] = c;
+            mat[2] = -s;
+            mat[8] = s;
+            mat[10] = c;
+            return mat;
+        }
+
+        function createRotationZMatrix(angle) {
+            const mat = createIdentityMatrix();
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            mat[0] = c;
+            mat[1] = s;
+            mat[4] = -s;
+            mat[5] = c;
+            return mat;
+        }
+
+        function multiplyMatrices(a, b) {
+            const result = new Float32Array(16);
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    result[i * 4 + j] =
+                        a[i * 4 + 0] * b[0 * 4 + j] +
+                        a[i * 4 + 1] * b[1 * 4 + j] +
+                        a[i * 4 + 2] * b[2 * 4 + j] +
+                        a[i * 4 + 3] * b[3 * 4 + j];
+                }
+            }
+            return result;
+        }
+
+        function createPerspectiveMatrix(fov, aspect, near, far) {
+            const f = 1.0 / Math.tan(fov / 2);
+            const nf = 1 / (near - far);
+
+            return new Float32Array([
+                f / aspect, 0, 0, 0,
+                0, f, 0, 0,
+                0, 0, (far + near) * nf, -1,
+                0, 0, 2 * far * near * nf, 0
+            ]);
+        }
+
+        function createLookAtMatrix(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
+            const zx = eyeX - centerX;
+            const zy = eyeY - centerY;
+            const zz = eyeZ - centerZ;
+            const zlen = Math.sqrt(zx * zx + zy * zy + zz * zz);
+            const znx = zx / zlen;
+            const zny = zy / zlen;
+            const znz = zz / zlen;
+
+            const xx = upY * znz - upZ * zny;
+            const xy = upZ * znx - upX * znz;
+            const xz = upX * zny - upY * znx;
+            const xlen = Math.sqrt(xx * xx + xy * xy + xz * xz);
+            const xnx = xx / xlen;
+            const xny = xy / xlen;
+            const xnz = xz / xlen;
+
+            const yx = zny * xnz - znz * xny;
+            const yy = znz * xnx - znx * xnz;
+            const yz = znx * xny - zny * xnx;
+
+            return new Float32Array([
+                xnx, yx, znx, 0,
+                xny, yy, zny, 0,
+                xnz, yz, znz, 0,
+                -(xnx * eyeX + xny * eyeY + xnz * eyeZ),
+                -(yx * eyeX + yy * eyeY + yz * eyeZ),
+                -(znx * eyeX + zny * eyeY + znz * eyeZ),
+                1
+            ]);
+        }
+
+        // Performance metrics
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 60;
+        let drawCallCount = 0;
+        let stateChangeCount = 0;
+
+        // Render loop
+        function render(time) {
+            time *= 0.001; // Convert to seconds
+
+            // Update FPS
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime >= lastTime + 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                frameCount = 0;
+                lastTime = currentTime;
+                document.getElementById('fps').textContent = fps;
+            }
+
+            const frameStartTime = performance.now();
+
+            // Clear
+            gl.clearColor(0.1, 0.1, 0.1, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.enable(gl.DEPTH_TEST);
+
+            gl.useProgram(program);
+            stateChangeCount = 1; // Program switch
+            drawCallCount = 0;
+
+            // Create projection and view matrices (NEW EVERY FRAME - INEFFICIENT!)
+            const projectionMatrix = createPerspectiveMatrix(
+                45 * Math.PI / 180,
+                canvas.width / canvas.height,
+                0.1,
+                1000.0
+            );
+
+            const cameraDistance = 40;
+            const viewMatrix = createLookAtMatrix(
+                Math.sin(time * 0.2) * cameraDistance,
+                20,
+                Math.cos(time * 0.2) * cameraDistance,
+                0, 0, 0,
+                0, 1, 0
+            );
+
+            gl.uniformMatrix4fv(uProjection, false, projectionMatrix);
+            gl.uniformMatrix4fv(uView, false, viewMatrix);
+            gl.uniform1f(uTime, time);
+
+            // Draw each object individually (VERY INEFFICIENT!)
+            objects.forEach((obj, index) => {
+                // Update rotation
+                obj.rotationX += obj.rotationSpeedX;
+                obj.rotationY += obj.rotationSpeedY;
+                obj.rotationZ += obj.rotationSpeedZ;
+
+                // Create model matrix (NEW EVERY OBJECT - INEFFICIENT!)
+                let modelMatrix = createTranslationMatrix(obj.x, obj.y, obj.z);
+                modelMatrix = multiplyMatrices(modelMatrix, createRotationXMatrix(obj.rotationX));
+                modelMatrix = multiplyMatrices(modelMatrix, createRotationYMatrix(obj.rotationY));
+                modelMatrix = multiplyMatrices(modelMatrix, createRotationZMatrix(obj.rotationZ));
+
+                gl.uniformMatrix4fv(uModel, false, modelMatrix);
+
+                // Bind buffers for EACH object (VERY INEFFICIENT!)
+                gl.bindBuffer(gl.ARRAY_BUFFER, obj.positionBuffer);
+                gl.enableVertexAttribArray(aPosition);
+                gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+                stateChangeCount += 3;
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, obj.colorBuffer);
+                gl.enableVertexAttribArray(aColor);
+                gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+                stateChangeCount += 3;
+
+                // Individual draw call for each object (NO BATCHING!)
+                gl.drawArrays(gl.TRIANGLES, 0, 36);
+                drawCallCount++;
+            });
+
+            // Update metrics
+            const frameTime = performance.now() - frameStartTime;
+            document.getElementById('frameTime').textContent = frameTime.toFixed(2) + 'ms';
+            document.getElementById('drawCalls').textContent = drawCallCount;
+            document.getElementById('stateChanges').textContent = stateChangeCount;
+            document.getElementById('vertices').textContent = (drawCallCount * 36).toLocaleString();
+
+            requestAnimationFrame(render);
+        }
+
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>
